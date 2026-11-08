@@ -45,22 +45,18 @@ const whiteShader = new Cesium.CustomShader({
 function setWhite(on) {
   whiteMode = on;
   const btn = document.getElementById('whiteBtn');
-  if (on) {
-    if (tileset) tileset.customShader = whiteShader;
-    viewer.imageryLayers.get(0).show = false;               // 藏起 OSM 2D 底图
-    viewer.scene.globe.baseColor = Cesium.Color.WHITE;       // 地球底色改为白
-    viewer.scene.skyBox = undefined;                         // 去掉星空盒，露浅色背景
-    viewer.scene.skyAtmosphere.show = false;
-    viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#e9e9e9');
-    btn.textContent = '实景'; btn.classList.add('on');
-  } else {
-    if (tileset) tileset.customShader = undefined;           // 恢复照片纹理
-    viewer.imageryLayers.get(0).show = true;
-    viewer.scene.globe.baseColor = defaultBaseColor;
-    viewer.scene.skyBox = defaultSkyBox;
-    viewer.scene.skyAtmosphere.show = true;
-    btn.textContent = '白模'; btn.classList.remove('on');
+  try {
+    if (tileset) tileset.customShader = on ? whiteShader : undefined;
+    viewer.scene.globe.baseColor = on ? Cesium.Color.WHITE : defaultBaseColor;
+    viewer.scene.backgroundColor = on ? Cesium.Color.fromCssColorString('#e9e9e9') : Cesium.Color.BLACK;
+    const layer = (viewer.imageryLayers && viewer.imageryLayers.length > 0) ? viewer.imageryLayers.get(0) : null;
+    if (layer) layer.show = !on;                              // 藏起 OSM 2D 底图（若存在）
+    if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = !on;
+    if (on) { viewer.scene.skyBox = undefined; } else { viewer.scene.skyBox = defaultSkyBox; }
+  } catch (err) {
+    console.warn('white mode styling failed', err);           // 样式失败也不影响模型加载
   }
+  btn.textContent = on ? '实景' : '白模'; btn.classList.toggle('on', on);
 }
 function toggleWhite() {
   if (!tileset) { document.getElementById('status').textContent = '请先粘贴 token、点“加载实景 3D”，等模型出来再切换白模。'; return; }
@@ -80,12 +76,16 @@ async function loadTiles(){
   Cesium.Ion.defaultAccessToken = t;
   st.textContent = '正在加载谷歌实景 3D，请稍候…';
   try {
-    viewer.terrainProvider = await Cesium.createWorldTerrainAsync();
+    try { viewer.terrainProvider = await Cesium.createWorldTerrainAsync(); }
+    catch (terrErr) { console.warn('world terrain failed, keeping ellipsoid terrain', terrErr); }
     tileset = await Cesium.Cesium3DTileset.fromIonAssetId(2275207);
     viewer.scene.primitives.add(tileset);
-    setWhite(true);   // 默认就是白色 3D 模型
-    st.textContent = '已加载，当前为白色 3D 模型。滚轮缩放、拖动旋转；点“实景”可切回照片纹理。';
-    fly(120.1475, 30.249, 2500);
-  } catch(e){ st.textContent = '加载失败：' + e.message + '。检查 token 是否有效、账号里是否已添加资产 2275207。'; }
+  } catch(e){
+    st.textContent = '加载失败：' + (e && e.message ? e.message : String(e)) + '。检查 token 是否有效、账号里是否已添加资产 2275207。';
+    return;
+  }
+  setWhite(true);   // 默认就是白色 3D 模型
+  st.textContent = '已加载，当前为白色 3D 模型。滚轮缩放、拖动旋转；点“实景”可切回照片纹理。';
+  fly(120.1475, 30.249, 2500);
 }
 </script></body></html>
