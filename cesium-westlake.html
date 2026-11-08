@@ -41,6 +41,9 @@ let tileset = null, whiteMode = false;
 // 白模着色器：去掉照片纹理，全部表面改为近纯白，保留光照和阴影，呈现白色 3D 模型效果
 // diffuse 用 0.92 而不用 1.0：纯白会把亮面全部裁成一片白，看不出明暗层次
 const whiteShader = new Cesium.CustomShader({
+  // 关键：CustomShader 默认是 UNLIT（不参与光照），谷歌瓦片材质本身也是烘焙光照，
+  // 不强制 PBR 的话，上面开的阴影、16:00 低太阳、压低环境光全都不起作用，白模还是一片死白。
+  lightingModel: Cesium.LightingModel.PBR,
   fragmentShaderText: `
     void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
       material.diffuse = vec3(0.92, 0.92, 0.92);
