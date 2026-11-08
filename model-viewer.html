@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>杭州西湖 · 白色 3D 模型文件</title>
+<style>html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;font-family:sans-serif;background:#e9e9e9}
+#info{position:absolute;top:12px;left:12px;z-index:10;background:rgba(10,16,28,.82);color:#e8f0ff;padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.6;max-width:320px}
+#status{color:#9fd6a0}</style>
+<script type="importmap">
+{"imports":{
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<div id="info"><b>杭州西湖 · 白色 3D 模型</b><br>
+<span style="color:#bcd">整个西湖 5×5km，白色模型文件（GLB）。拖动旋转，滚轮缩放，右键拖动平移。想下载文件点 <a href="hangzhou-westlake-full-5000m.glb" style="color:#9fc2ff">GLB 文件</a>。</span>
+<div id="status">正在加载模型…</div></div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe9e9e9);
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 1, 100000);
+camera.position.set(4200, 3000, 4200);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 80, 0);
+controls.autoRotate = true; controls.autoRotateSpeed = 0.6;
+controls.addEventListener('start', () => controls.autoRotate = false);
+controls.maxDistance = 20000; controls.minDistance = 200;
+
+// 光：半球光打底 + 下午的低太阳打主光、带阴影，白模的明暗和影子主要靠这个
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8a8a, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+sun.position.set(-3500, 2200, 1500);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -3500; sun.shadow.camera.right = 3500;
+sun.shadow.camera.top = 3500; sun.shadow.camera.bottom = -3500;
+sun.shadow.camera.near = 100; sun.shadow.camera.far = 15000;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+const status = document.getElementById('status');
+new GLTFLoader().load('hangzhou-westlake-full-5000m.glb', (g) => {
+  const model = g.scene;
+  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(model);
+  status.textContent = '已加载。拖动旋转，滚轮缩放。';
+}, (xhr) => {
+  if (xhr.total) status.textContent = '正在加载模型… ' + Math.round(xhr.loaded/xhr.total*100) + '%';
+}, (err) => {
+  status.textContent = '加载失败：' + (err && err.message ? err.message : err);
+});
+function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+animate();
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script></body></html>
