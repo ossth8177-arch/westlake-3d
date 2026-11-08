@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>杭州西湖 · 谷歌实景 3D（Cesium）</title>
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.132.0/Build/Cesium/Cesium.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/cesium@1.132.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<style>html,body,#cesium{width:100%;height:100%;margin:0;padding:0;overflow:hidden;font-family:sans-serif}
+#panel{position:absolute;top:12px;left:12px;z-index:10;background:rgba(10,16,28,.82);color:#e8f0ff;
+ padding:12px 14px;border-radius:10px;max-width:340px;font-size:13px;line-height:1.6}
+#panel input{width:100%;box-sizing:border-box;padding:6px;margin:6px 0;border-radius:6px;border:1px solid #555;background:#111;color:#fff}
+#panel button{margin:2px 4px 2px 0;padding:5px 10px;border:0;border-radius:6px;background:#2f6fed;color:#fff;cursor:pointer}
+#status{color:#9fd6a0;margin-top:6px}</style></head>
+<body>
+<div id="cesium"></div>
+<div id="panel">
+ <b>杭州西湖 · 谷歌实景 3D</b><br>
+ <span style="color:#bcd">没有 token 时先显示免费 OSM 地图底图；粘贴 Cesium ion token 后加载谷歌航拍实景 3D（真楼真树真塔）。</span>
+ <input id="token" type="text" placeholder="粘贴 Cesium ion token（只存在你本机浏览器）">
+ <button onclick="loadTiles()">加载实景 3D</button>
+ <button onclick="fly(120.14516,30.23384,1200)">雷峰塔</button>
+ <button onclick="fly(120.14337,30.26334,1200)">保俶塔</button>
+ <button onclick="fly(120.15991,30.23893,1200)">城隍阁</button>
+ <div id="status">就绪。去 ion.cesium.com 注册免费账号 → My Assets 加 Google Photorealistic 3D Tiles（2275207）→ Access Tokens 建 token 粘贴到这里。</div>
+</div>
+<script>
+const viewer = new Cesium.Viewer('cesium', {
+  imageryProvider: new Cesium.OpenStreetMapImageryProvider({url:'https://tile.openstreetmap.org/'}),
+  terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+  baseLayerPicker: false, geocoder: false, homeButton: false,
+  timeline: false, animation: false, sceneModePicker: false, navigationHelpButton: false
+});
+viewer.scene.globe.enableLighting = true;
+function fly(lon, lat, h){ viewer.camera.flyTo({destination: Cesium.Cartesian3.fromDegrees(lon, lat, h),
+  orientation:{heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-55), roll: 0}, duration: 2}); }
+fly(120.1475, 30.249, 6000);
+const saved = localStorage.getItem('cesium_ion_token');
+if (saved) { document.getElementById('token').value = saved; loadTiles(); }
+async function loadTiles(){
+  const t = document.getElementById('token').value.trim();
+  const st = document.getElementById('status');
+  if (!t) { st.textContent = '请先粘贴 token。'; return; }
+  localStorage.setItem('cesium_ion_token', t);
+  Cesium.Ion.defaultAccessToken = t;
+  st.textContent = '正在加载谷歌实景 3D，请稍候…';
+  try {
+    viewer.terrainProvider = await Cesium.createWorldTerrainAsync();
+    const tiles = await Cesium.Cesium3DTileset.fromIonAssetId(2275207);
+    viewer.scene.primitives.add(tiles);
+    st.textContent = '已加载谷歌实景 3D。滚轮缩放、拖动旋转。';
+    fly(120.1475, 30.249, 2500);
+  } catch(e){ st.textContent = '加载失败：' + e.message + '。检查 token 是否有效、账号里是否已添加资产 2275207。'; }
+}
+</script></body></html>
