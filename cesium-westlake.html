@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
-<title>杭州西湖 · 谷歌实景 3D（Cesium）</title>
+<title>杭州西湖 · 白色 3D 模型（Cesium）</title>
 <script src="https://cdn.jsdelivr.net/npm/cesium@1.132.0/Build/Cesium/Cesium.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/cesium@1.132.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 <style>html,body,#cesium{width:100%;height:100%;margin:0;padding:0;overflow:hidden;font-family:sans-serif}
@@ -8,14 +8,16 @@
  padding:12px 14px;border-radius:10px;max-width:340px;font-size:13px;line-height:1.6}
 #panel input{width:100%;box-sizing:border-box;padding:6px;margin:6px 0;border-radius:6px;border:1px solid #555;background:#111;color:#fff}
 #panel button{margin:2px 4px 2px 0;padding:5px 10px;border:0;border-radius:6px;background:#2f6fed;color:#fff;cursor:pointer}
+#panel button.on{background:#e8a13a;color:#222}
 #status{color:#9fd6a0;margin-top:6px}</style></head>
 <body>
 <div id="cesium"></div>
 <div id="panel">
- <b>杭州西湖 · 谷歌实景 3D</b><br>
- <span style="color:#bcd">没有 token 时先显示免费 OSM 地图底图；粘贴 Cesium ion token 后加载谷歌航拍实景 3D（真楼真树真塔）。</span>
+ <b>杭州西湖 · 白色 3D 模型</b><br>
+ <span style="color:#bcd">谷歌航拍实景的真实几何，以白色模型呈现。粘贴 Cesium ion token 后加载；白模 / 实景可随时切换。</span>
  <input id="token" type="text" placeholder="粘贴 Cesium ion token（只存在你本机浏览器）">
  <button onclick="loadTiles()">加载实景 3D</button>
+ <button id="whiteBtn" onclick="toggleWhite()">白模</button>
  <button onclick="fly(120.14516,30.23384,1200)">雷峰塔</button>
  <button onclick="fly(120.14337,30.26334,1200)">保俶塔</button>
  <button onclick="fly(120.15991,30.23893,1200)">城隍阁</button>
@@ -29,6 +31,42 @@ const viewer = new Cesium.Viewer('cesium', {
   timeline: false, animation: false, sceneModePicker: false, navigationHelpButton: false
 });
 viewer.scene.globe.enableLighting = true;
+const defaultSkyBox = viewer.scene.skyBox;
+const defaultBaseColor = viewer.scene.globe.baseColor.clone();
+let tileset = null, whiteMode = false;
+
+// 白模着色器：去掉照片纹理，全部表面改为纯白，保留光照和阴影，呈现白色 3D 模型效果
+const whiteShader = new Cesium.CustomShader({
+  fragmentShaderText: `
+    void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
+      material.diffuse = vec3(1.0, 1.0, 1.0);
+    }`
+});
+function setWhite(on) {
+  whiteMode = on;
+  const btn = document.getElementById('whiteBtn');
+  if (on) {
+    if (tileset) tileset.customShader = whiteShader;
+    viewer.imageryLayers.get(0).show = false;               // 藏起 OSM 2D 底图
+    viewer.scene.globe.baseColor = Cesium.Color.WHITE;       // 地球底色改为白
+    viewer.scene.skyBox = undefined;                         // 去掉星空盒，露浅色背景
+    viewer.scene.skyAtmosphere.show = false;
+    viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#e9e9e9');
+    btn.textContent = '实景'; btn.classList.add('on');
+  } else {
+    if (tileset) tileset.customShader = undefined;           // 恢复照片纹理
+    viewer.imageryLayers.get(0).show = true;
+    viewer.scene.globe.baseColor = defaultBaseColor;
+    viewer.scene.skyBox = defaultSkyBox;
+    viewer.scene.skyAtmosphere.show = true;
+    btn.textContent = '白模'; btn.classList.remove('on');
+  }
+}
+function toggleWhite() {
+  if (!tileset) { document.getElementById('status').textContent = '请先粘贴 token、点“加载实景 3D”，等模型出来再切换白模。'; return; }
+  setWhite(!whiteMode);
+  document.getElementById('status').textContent = whiteMode ? '白色 3D 模型。点“实景”可切回照片纹理。' : '实景照片纹理。点“白模”可切回白色模型。';
+}
 function fly(lon, lat, h){ viewer.camera.flyTo({destination: Cesium.Cartesian3.fromDegrees(lon, lat, h),
   orientation:{heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-55), roll: 0}, duration: 2}); }
 fly(120.1475, 30.249, 6000);
@@ -43,9 +81,10 @@ async function loadTiles(){
   st.textContent = '正在加载谷歌实景 3D，请稍候…';
   try {
     viewer.terrainProvider = await Cesium.createWorldTerrainAsync();
-    const tiles = await Cesium.Cesium3DTileset.fromIonAssetId(2275207);
-    viewer.scene.primitives.add(tiles);
-    st.textContent = '已加载谷歌实景 3D。滚轮缩放、拖动旋转。';
+    tileset = await Cesium.Cesium3DTileset.fromIonAssetId(2275207);
+    viewer.scene.primitives.add(tileset);
+    setWhite(true);   // 默认就是白色 3D 模型
+    st.textContent = '已加载，当前为白色 3D 模型。滚轮缩放、拖动旋转；点“实景”可切回照片纹理。';
     fly(120.1475, 30.249, 2500);
   } catch(e){ st.textContent = '加载失败：' + e.message + '。检查 token 是否有效、账号里是否已添加资产 2275207。'; }
 }
