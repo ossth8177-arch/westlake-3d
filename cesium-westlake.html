@@ -31,15 +31,19 @@ const viewer = new Cesium.Viewer('cesium', {
   timeline: false, animation: false, sceneModePicker: false, navigationHelpButton: false
 });
 viewer.scene.globe.enableLighting = true;
+viewer.shadows = true;   // 开阴影：楼和塔会投下真实影子，白模的立体感主要靠这个
+viewer.clock.currentTime = Cesium.JulianDate.fromIso8601('2026-11-08T08:00:00Z'); // 固定在 16:00，太阳低、影子长
+viewer.clock.shouldAnimate = false;
 const defaultSkyBox = viewer.scene.skyBox;
 const defaultBaseColor = viewer.scene.globe.baseColor.clone();
 let tileset = null, whiteMode = false;
 
-// 白模着色器：去掉照片纹理，全部表面改为纯白，保留光照和阴影，呈现白色 3D 模型效果
+// 白模着色器：去掉照片纹理，全部表面改为近纯白，保留光照和阴影，呈现白色 3D 模型效果
+// diffuse 用 0.92 而不用 1.0：纯白会把亮面全部裁成一片白，看不出明暗层次
 const whiteShader = new Cesium.CustomShader({
   fragmentShaderText: `
     void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
-      material.diffuse = vec3(1.0, 1.0, 1.0);
+      material.diffuse = vec3(0.92, 0.92, 0.92);
     }`
 });
 function setWhite(on) {
@@ -47,6 +51,8 @@ function setWhite(on) {
   const btn = document.getElementById('whiteBtn');
   try {
     if (tileset) tileset.customShader = on ? whiteShader : undefined;
+    // 白模时压低环境光：环境光是均匀的，会把朝向不同带来的明暗差洗平；压低后太阳直射光主导，明暗层次才出来
+    if (tileset) tileset.imageBasedLightingFactor = on ? new Cesium.Cartesian2(0.3, 0.3) : new Cesium.Cartesian2(1.0, 1.0);
     viewer.scene.globe.baseColor = on ? Cesium.Color.WHITE : defaultBaseColor;
     viewer.scene.backgroundColor = on ? Cesium.Color.fromCssColorString('#e9e9e9') : Cesium.Color.BLACK;
     const layer = (viewer.imageryLayers && viewer.imageryLayers.length > 0) ? viewer.imageryLayers.get(0) : null;
