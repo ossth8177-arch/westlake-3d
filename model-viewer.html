@@ -14,6 +14,7 @@
 <body>
 <div id="info"><b>杭州西湖 · 白色 3D 模型</b><br>
 <span style="color:#bcd">整个西湖 5×5km，白色模型文件（GLB）。拖动旋转，滚轮缩放，右键拖动平移。想下载文件点 <a href="hangzhou-westlake-full-5000m.glb" style="color:#9fc2ff">GLB 文件</a>。</span>
+<div id="landmarks" style="margin-top:8px"></div>
 <div id="status">正在加载模型…</div></div>
 <script type="module">
 import * as THREE from 'three';
@@ -51,6 +52,31 @@ sun.shadow.camera.top = 3500; sun.shadow.camera.bottom = -3500;
 sun.shadow.camera.near = 100; sun.shadow.camera.far = 15000;
 sun.shadow.bias = -0.0004;
 scene.add(sun);
+
+// 地标跳转：GLB 单位是真实米，原点在地图中心，X=东，Z=南（北是 -Z）。
+const LANDMARKS = {
+  "全景": [0, 80, 0, 4200, 3000, 4200],
+  "雷峰塔": [-225, 380, 1676, 350, 700, 2600],
+  "保俶塔": [-398, 260, -1585, 200, 600, -2400],
+  "城隍阁": [1194, 250, 1113, 1900, 600, 1900],
+  "断桥": [-45, 60, -1315, 400, 350, -1900],
+  "西泠印社": [-1156, 100, -419, -700, 400, -1000],
+  "平湖秋月": [-567, 60, -575, -100, 350, -1100],
+  "三潭印月": [-800, 40, 1030, -300, 350, 1600],
+};
+const lmDiv = document.getElementById('landmarks');
+for (const [name, v] of Object.entries(LANDMARKS)) {
+  const b = document.createElement('button');
+  b.textContent = name;
+  b.style.cssText = 'margin:2px 3px 2px 0;padding:4px 9px;border-radius:6px;border:1px solid #4a6a9a;background:#1c2f4d;color:#dfeaff;cursor:pointer;font-size:12px';
+  b.onclick = () => {
+    controls.autoRotate = false;
+    controls.target.set(v[0], v[1], v[2]);
+    camera.position.set(v[3], v[4], v[5]);
+    controls.update();
+  };
+  lmDiv.appendChild(b);
+}
 
 const status = document.getElementById('status');
 new GLTFLoader().load('hangzhou-westlake-full-5000m.glb', (g) => {
